@@ -15,7 +15,6 @@ namespace Picrosser
         public enum MiniGameState
         {
             Start, //Welcomey!
-            Tutorial, //Do you need help about how to play picross?
             LevelSelect, //Hmm which do I play
             GameOn //Arson
         }
@@ -39,6 +38,8 @@ namespace Picrosser
         internal static Texture2D LevelBox;
 
         internal static Texture2D Locked;
+
+        internal static Texture2D Complete;
 
         internal static int levelID;
 
@@ -66,15 +67,9 @@ namespace Picrosser
 
         internal static ClickableTextureComponent Quit;
 
-        internal static ClickableTextureComponent Yes;
-
-        internal static ClickableTextureComponent No;
-
         internal static ClickableTextureComponent Save;
 
         internal static ClickableTextureComponent Replay;
-
-        internal static ClickableTextureComponent Tutorial;
 
         internal static ClickableTextureComponent Check;
 
@@ -111,17 +106,15 @@ namespace Picrosser
             PaintPic = ModEntry.Helper.ModContent.Load<Texture2D>("assets/Paint.png");
             LevelBox = ModEntry.Helper.ModContent.Load<Texture2D>("assets/LevelBox.png");
             Locked = ModEntry.Helper.ModContent.Load<Texture2D>("assets/Locked.png");
+            Complete = ModEntry.Helper.ModContent.Load<Texture2D>("assets/Complete.png");
 
             Quit = new("", new((int)TopLeftCorner.X + 850, 18, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Quit.png"), Rectangle.Empty, 4f);
-            Tutorial = new("", new((int)TopLeftCorner.X + 850, 108, 84 , 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Tutorial.png"), Rectangle.Empty, 4f);
-            Check = new("", new((int)TopLeftCorner.X + 850, 198, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Check.png"), Rectangle.Empty, 4f);
-            Save = new("", new((int)TopLeftCorner.X + 850, 288, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Save.png"), Rectangle.Empty, 4f);
-            Replay = new("", new((int)TopLeftCorner.X + 850, 378, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Replay.png"), Rectangle.Empty, 4f);
-            Hint = new("", new((int)TopLeftCorner.X + 850, 468, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Hint.png"), Rectangle.Empty, 4f);
-            Return = new ("", new((int)TopLeftCorner.X + 850, 558, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Return.png"), Rectangle.Empty, 4f);
+            Check = new("", new((int)TopLeftCorner.X + 850, 108, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Check.png"), Rectangle.Empty, 4f);
+            Save = new("", new((int)TopLeftCorner.X + 850, 198, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Save.png"), Rectangle.Empty, 4f);
+            Replay = new("", new((int)TopLeftCorner.X + 850, 288, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Replay.png"), Rectangle.Empty, 4f);
+            Hint = new("", new((int)TopLeftCorner.X + 850, 378, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Hint.png"), Rectangle.Empty, 4f);
+            Return = new ("", new((int)TopLeftCorner.X + 850, 468, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Return.png"), Rectangle.Empty, 4f);
             
-            Yes = new("", new(700, 500, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Yes.png"), Rectangle.Empty, 4f);
-            No = new("", new(800, 500, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Quit.png"), Rectangle.Empty, 4f);
             Scale = (int)ModEntry.ModConfig.Scale * 18;
             LevelRects = new Rectangle[6]
             {
@@ -155,9 +148,7 @@ namespace Picrosser
         }
         public bool tick(GameTime gameTime)
         {
-            if (Tutorial.containsPoint(Game1.getMouseX(), Game1.getMouseY()))
-                Info = "Get back to\ntutorial!";
-            else if (Check.containsPoint(Game1.getMouseX(), Game1.getMouseY()))
+            if (Check.containsPoint(Game1.getMouseX(), Game1.getMouseY()))
                 Info = "Check your\nprogress!";
             else if (Quit.containsPoint(Game1.getMouseX(), Game1.getMouseY()))
                 Info = "Quit the\nminigame!";
@@ -179,15 +170,6 @@ namespace Picrosser
 
         public void receiveLeftClick(int x, int y, bool playSound = true)
         {
-            if (No.containsPoint(x, y) && state == MiniGameState.Tutorial)
-            {
-                ModEntry.Progress.NeedsTutorial = false;
-                state = MiniGameState.LevelSelect;
-                pageID = 0;
-                LevelMenuPrep();
-             
-                return;
-            }
             if (state == MiniGameState.GameOn)
             {
                 if (Quit.containsPoint(x, y))
@@ -241,10 +223,15 @@ namespace Picrosser
                 if (Check.containsPoint(x, y))
                 {
                     List<(int X, int Y, bool? status)> list = new();
+                    List<(int X, int Y, bool? status)> SolutionTrues = new();
                     for (int indexX = 0; indexX < FirstDimension; indexX++)
                         for (int indexY = 0; indexY < SecondDimension; indexY++)
-                            if (TileStatuses[indexX, indexY] is not null)
-                                list.Add((indexX, indexY, TileStatuses[indexX, indexY]));
+                        {
+                            if (TileStatuses[indexX, indexY] is true)
+                                list.Add((indexX, indexY, true));
+                            if (CurrentPicross.PicrossSolution[indexX, indexY] is true)
+                                SolutionTrues.Add((indexX, indexY, true));
+                        }
 
                     for (int i = 0; i < list.Count; i++)
                         if (CurrentPicross.PicrossSolution[list[i].X, list[i].Y] != list[i].status)
@@ -255,7 +242,7 @@ namespace Picrosser
                         else
                             Status = "It's OK so\nfar.";
 
-                    if (Status == "It's OK so\nfar." && list.Count == TileStatuses.Length)
+                    if (Status == "It's OK so\nfar." && SolutionTrues.Count == list.Count)
                     {
                         if (!ModEntry.Progress.Completed.Contains(CurrentPicross.Name))
                         {
@@ -273,19 +260,11 @@ namespace Picrosser
                     }
                 }
             }
-            if ((state == MiniGameState.Tutorial && Yes.containsPoint(x, y)) || Tutorial.containsPoint(x, y) || state == MiniGameState.Start)
+            if (state == MiniGameState.Start)
             {
-                if (state is MiniGameState.Tutorial)
-                    ModEntry.Progress.NeedsTutorial = true;
-
-                state = MiniGameState.Tutorial;
-            }
-            else if (state == MiniGameState.Tutorial)
-            {
-                state = MiniGameState.LevelSelect;
                 pageID = 0;
                 LevelMenuPrep();
-                return;
+                state = MiniGameState.LevelSelect;
             }
             else if (state == MiniGameState.LevelSelect)
             {
@@ -342,21 +321,6 @@ namespace Picrosser
                 case MiniGameState.Start:
                     b.Draw(Logo, Vector2.Zero, null, Color.White, 0, Vector2.Zero, 2f, SpriteEffects.None, 0.5f);
                     break;
-                case MiniGameState.Tutorial:
-                    if (ModEntry.Progress.NeedsTutorial is not null || ModEntry.Progress.NeedsTutorial is true)
-                    {
-                        b.DrawString(Game1.dialogueFont, "Picross is a puzzle where your goal is to reveal an\nimage by painting or crossing tiles according to numbers\ngiven at rows and columns.", TopLeftCorner, new Color(79, 52, 57));
-                        b.Draw(CrossPic, new(TopLeftCorner.X + 80, TopLeftCorner.Y + 130), null, Color.White, 0, Vector2.Zero, 4f, SpriteEffects.None, 0.5f);
-                        b.Draw(PaintPic, new(TopLeftCorner.X + 160, TopLeftCorner.Y + 130), null, Color.White, 0, Vector2.Zero, 4f, SpriteEffects.None, 0.5f);
-                        b.DrawString(Game1.dialogueFont, "Click anywhere if you understand and want to go to level selection", new(TopLeftCorner.X, TopLeftCorner.Y + 200), new Color(79, 52, 57));
-                    }
-                    else
-                    {
-                        b.DrawString(Game1.dialogueFont, "Do you need a tutorial on how to play The Picrosser?", TopLeftCorner, new Color(79, 52, 57));
-                        Yes.draw(b);
-                        No.draw(b);
-                    }
-                    break;
                 case MiniGameState.LevelSelect:
                     for (int i = 0; i < LevelRects.Length; i++)
                     {
@@ -364,7 +328,9 @@ namespace Picrosser
                         b.Draw(LevelBox, LevelRects[i], Color.White);
                         if (i < LevelBunch[pageID].Length)
                         {
-                            if (Unlocked.Contains(LevelBunch[pageID][i]))
+                            if (ModEntry.Progress.Completed.Contains(LevelBunch[pageID][i]))
+                                b.Draw(Complete, LevelRects[i], Color.White);
+                            else if (Unlocked.Contains(LevelBunch[pageID][i]))
                                 b.DrawString(Game1.dialogueFont, (i + 1 + (pageID * 6)).ToString(), new(LevelRects[i].X + 48, LevelRects[i].Y + 48), new(79, 52, 57));
                             else if (!string.IsNullOrEmpty(LevelBunch[pageID][i]))
                                 b.Draw(Locked, LevelRects[i], Color.White);
@@ -372,7 +338,6 @@ namespace Picrosser
                     }
                     break;
                 case MiniGameState.GameOn:
-                    Tutorial.draw(b);
                     Check.draw(b);
                     Quit.draw(b);
                     Save.draw(b);
@@ -544,16 +509,12 @@ namespace Picrosser
         {
             TopLeftCorner = Utility.getTopLeftPositionForCenteringOnScreen(870, 550);
 
-            Quit = new("", new((int)TopLeftCorner.X + 850, 18, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Quit.png"), Rectangle.Empty, 4f);
-            Tutorial = new("", new((int)TopLeftCorner.X + 850, 108, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Tutorial.png"), Rectangle.Empty, 4f);
-            Check = new("", new((int)TopLeftCorner.X + 850, 198, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Check.png"), Rectangle.Empty, 4f);
-            Save = new("", new((int)TopLeftCorner.X + 850, 288, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Save.png"), Rectangle.Empty, 4f);
-            Replay = new("", new((int)TopLeftCorner.X + 850, 378, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Replay.png"), Rectangle.Empty, 4f);
-            Hint = new("", new((int)TopLeftCorner.X + 850, 468, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Hint.png"), Rectangle.Empty, 4f);
-            Return = new("", new((int)TopLeftCorner.X + 850, 558, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Return.png"), Rectangle.Empty, 4f);
-
-            Yes = new("", new(700, 500, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Yes.png"), Rectangle.Empty, 4f);
-            No = new("", new(800, 500, 84, 84), "", "", ModEntry.Helper.ModContent.Load<Texture2D>("assets/Quit.png"), Rectangle.Empty, 4f);
+            Quit.bounds = new((int)TopLeftCorner.X + 850, 18, 84, 84);
+            Check.bounds = new((int)TopLeftCorner.X + 850, 108, 84, 84);
+            Save.bounds = new((int)TopLeftCorner.X + 850, 198, 84, 84);
+            Replay.bounds = new((int)TopLeftCorner.X + 850, 288, 84, 84);
+            Hint.bounds = new((int)TopLeftCorner.X + 850, 378, 84, 84);
+            Return.bounds = new((int)TopLeftCorner.X + 850, 468, 84, 84);
 
             LevelRects = new Rectangle[6]
             {

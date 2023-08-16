@@ -10,6 +10,6 @@ namespace Picrosser
 
         public Dictionary<string, bool?[,]> Continuing = new();
 
-        public bool? NeedsTutorial = null;
+        public bool? NeedsTutorial = null; //Deprecated, but kept in for compatibility - Tutorial mode no longer exists.
     }
 }
